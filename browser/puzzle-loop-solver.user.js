@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Puzzle Loop Solver
 // @namespace    puzzle-loop-solver
-// @version      1.0.0
-// @description  Adds a Solve button to puzzle-loop.com. Reads the puzzle from the page, solves it, checks the answer against the page's own solution hash, then draws the loop.
+// @version      1.1.0
+// @description  Slitherlink solver for puzzle-loop.com. Show the answer over the board, or have it drawn in. Reads the puzzle from the page and checks the answer against the page's own solution hash.
 // @match        https://www.puzzle-loop.com/*
 // @match        https://puzzle-loop.com/*
 // @grant        none
@@ -10,7 +10,7 @@
 // ==/UserScript==
 
 // One file, three uses:
-//   1. Tampermonkey / Violentmonkey userscript (adds a Solve button to the page).
+//   1. Tampermonkey / Violentmonkey userscript (adds a small Show / Draw panel to the page).
 //   2. Bookmarklet (built from this file by make-bookmarklet.js).
 //   3. Node module (require('./puzzle-loop-solver.user.js')) for the command line and the tests.
 // The solver itself is plain logic: no screenshots, no network, no AI.
@@ -389,15 +389,64 @@
   // ---------------------------------------------------------------------------
   const win = window;
 
+  // Two modes, remembered per browser:
+  //   show: lay the answer over the board in blue; the game itself is not touched.
+  //   draw: fill the answer in through the game, as if drawn by hand.
+  const MODE_KEY = 'pls-mode';
+  function getMode() { try { return localStorage.getItem(MODE_KEY) === 'draw' ? 'draw' : 'show'; } catch (e) { return 'show'; } }
+  function setMode(m) { try { localStorage.setItem(MODE_KEY, m); } catch (e) { /* private window: mode just isn't remembered */ } }
+
+  let cached = null;   // last solved puzzle, so Show/Hide doesn't solve again
+  let overlay = null;  // the blue answer layer while it is showing
+
   function readPuzzle() {
     const game = win.Game;
-    if (!game || !game.puzzleWidth || !game.currentState) throw new Error('No puzzle board found on this page.');
+    if (!game || !game.puzzleWidth || !game.currentState || !game.dom) throw new Error('No loop puzzle found on this page.');
     const scripts = Array.from(document.scripts).map(s => s.textContent).join('\n');
     let task = typeof win.task === 'string' ? win.task : null;
     if (!task) { const m = scripts.match(/var task = '([^']*)'/); task = m && m[1]; }
     if (!task) throw new Error('Could not find the puzzle data on this page.');
     const h = scripts.match(/hashedSolution:\s*'([0-9a-f]{32})'/);
     return { game, task, width: game.puzzleWidth, height: game.puzzleHeight, hash: h ? h[1] : null };
+  }
+
+  function solvePage(p) {
+    if (cached && cached.task === p.task && cached.width === p.width && cached.height === p.height) return cached;
+    const r = solveTask(p.task, p.width, p.height);
+    if (!r.ok) throw new Error(r.message);
+    let checked = false;
+    if (p.hash && typeof win.md5 === 'function') {
+      if (win.md5(p.task + r.answer) !== p.hash) throw new Error('Found a loop, but it does not match the page\'s answer check.');
+      checked = true;
+    }
+    cached = { task: p.task, width: p.width, height: p.height, answer: r.answer, ms: r.ms, checked };
+    return cached;
+  }
+
+  function overlayShowing() { return !!(overlay && overlay.isConnected); }
+  function hideOverlay() { if (overlay) overlay.remove(); overlay = null; }
+
+  // The answer as a see-through layer inside the board, so it follows the site's zoom and pan.
+  // Each piece copies the position of the game's own edge, stretched over the dots at both ends.
+  function showOverlay(game, width, height, answer) {
+    hideOverlay();
+    const parent = game.dom.cellsHorizontal[0][0][0].parentElement;
+    const layer = document.createElement('div');
+    layer.className = 'pls-overlay';
+    layer.style.cssText = 'position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:1000;opacity:.6';
+    const add = (el, horizontal) => {
+      const t = horizontal ? el.offsetHeight : el.offsetWidth;
+      const d = document.createElement('div');
+      d.style.cssText = 'position:absolute;background:#2563eb;border-radius:' + t + 'px;' + (horizontal
+        ? 'left:' + (el.offsetLeft - t) + 'px;top:' + el.offsetTop + 'px;width:' + (el.offsetWidth + 2 * t) + 'px;height:' + t + 'px'
+        : 'left:' + el.offsetLeft + 'px;top:' + (el.offsetTop - t) + 'px;width:' + t + 'px;height:' + (el.offsetHeight + 2 * t) + 'px');
+      layer.appendChild(d);
+    };
+    let i = 0;
+    for (let r = 0; r <= height; r++) for (let c = 0; c < width; c++, i++) if (answer[i] === 'y') add(game.dom.cellsHorizontal[r][c][0], true);
+    for (let r = 0; r < height; r++) for (let c = 0; c <= width; c++, i++) if (answer[i] === 'y') add(game.dom.cellsVertical[r][c][0], false);
+    parent.appendChild(layer);
+    overlay = layer;
   }
 
   // Draw through the game's own move handling, so undo, saving and the solved check all behave
@@ -436,51 +485,86 @@
     return { drawn: toDraw.length, cleared: toClear.length };
   }
 
-  function run(setStatus) {
-    try {
-      const p = readPuzzle();
-      if (p.game.solved || p.game.currentState.solved) { setStatus('Already solved.'); return; }
-      setStatus('Solving ' + p.width + ' x ' + p.height + '...');
-      // Let the status paint before the (possibly long) solve.
-      setTimeout(() => {
-        try {
-          const r = solveTask(p.task, p.width, p.height);
-          if (!r.ok) { setStatus(r.message); return; }
-          let checked = '';
-          if (p.hash && typeof win.md5 === 'function') {
-            if (win.md5(p.task + r.answer) !== p.hash) {
-              setStatus('Found a loop, but it does not match the page\'s answer check. Nothing drawn.');
-              return;
-            }
-            checked = ', matches the page\'s answer check';
+  function act(ui) {
+    let p;
+    try { p = readPuzzle(); } catch (e) { ui.status(e.message); return; }
+    const mode = getMode();
+    if (mode === 'show' && overlayShowing()) { hideOverlay(); ui.refresh(); ui.status('Answer hidden.'); return; }
+    ui.status('Solving ' + p.width + ' x ' + p.height + '...');
+    // Let the status paint before a long solve.
+    setTimeout(() => {
+      try {
+        const s = solvePage(p);
+        const how = 'solved in ' + s.ms + ' ms' + (s.checked ? ', matches the page\'s answer check' : '');
+        if (mode === 'show') {
+          showOverlay(p.game, p.width, p.height, s.answer);
+          ui.status('Answer shown in blue (' + how + '). Your board is unchanged.');
+        } else {
+          hideOverlay();
+          if (p.game.solved || p.game.currentState.solved) { ui.status('Already solved.'); }
+          else {
+            const d = drawAnswer(p.game, p.width, p.height, s.answer);
+            ui.status('Drew ' + d.drawn + ' lines' + (d.cleared ? ' and removed ' + d.cleared + ' wrong ones' : '') + ' (' + how + ').');
           }
-          const d = drawAnswer(p.game, p.width, p.height, r.answer);
-          setStatus('Solved in ' + r.ms + ' ms' + checked + '. Drew ' + d.drawn + ' lines' + (d.cleared ? ', removed ' + d.cleared : '') + '.');
-        } catch (e) { setStatus('Error: ' + e.message); }
-      }, 30);
-    } catch (e) { setStatus('Error: ' + e.message); }
+        }
+      } catch (e) { ui.status(e.message); }
+      ui.refresh();
+    }, 30);
   }
 
-  function addButton() {
-    if (document.getElementById('pls-solve')) return document.getElementById('pls-status');
+  function buildPanel() {
+    const existing = document.getElementById('pls-panel');
+    if (existing) return existing.__ui;
     const box = document.createElement('div');
-    box.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483647;display:flex;gap:8px;align-items:center;' +
-      'font:14px system-ui,sans-serif;background:#fff;border:1px solid #ccc;border-radius:8px;padding:8px 10px;box-shadow:0 2px 8px rgba(0,0,0,.15)';
-    const btn = document.createElement('button');
-    btn.id = 'pls-solve';
-    btn.textContent = 'Solve';
-    btn.style.cssText = 'font:600 14px system-ui,sans-serif;padding:6px 14px;border:0;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer';
-    const status = document.createElement('span');
-    status.id = 'pls-status';
-    status.style.cssText = 'color:#333;max-width:360px';
-    btn.addEventListener('click', () => run(t => { status.textContent = t; }));
-    box.append(btn, status);
+    box.id = 'pls-panel';
+    box.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483647;width:300px;font:13px system-ui,sans-serif;color:#222;' +
+      'background:#fff;border:1px solid #ccc;border-radius:8px;padding:10px;box-shadow:0 2px 10px rgba(0,0,0,.18)';
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;align-items:center';
+    const seg = document.createElement('div');
+    seg.style.cssText = 'display:flex;border:1px solid #2563eb;border-radius:6px;overflow:hidden';
+    const segBtn = (label, title) => {
+      const b = document.createElement('button');
+      b.textContent = label; b.title = title;
+      b.style.cssText = 'font:600 13px system-ui,sans-serif;padding:5px 10px;border:0;cursor:pointer';
+      seg.appendChild(b);
+      return b;
+    };
+    const bShow = segBtn('Show', 'Show the answer over the board without changing it');
+    const bDraw = segBtn('Draw', 'Fill the answer in on the board');
+    const go = document.createElement('button');
+    go.style.cssText = 'flex:1;font:600 13px system-ui,sans-serif;padding:6px 10px;border:0;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer';
+    const close = document.createElement('button');
+    close.textContent = '×'; close.title = 'Close';
+    close.style.cssText = 'font:16px system-ui,sans-serif;border:0;background:none;color:#666;cursor:pointer;padding:0 4px';
+    const status = document.createElement('div');
+    status.style.cssText = 'margin-top:8px;color:#444;min-height:1em';
+    row.append(seg, go, close);
+    box.append(row, status);
     document.body.appendChild(box);
-    return status;
+
+    const ui = {
+      status(t) { status.textContent = t; },
+      refresh() {
+        const m = getMode();
+        for (const [b, on] of [[bShow, m === 'show'], [bDraw, m === 'draw']]) {
+          b.style.background = on ? '#2563eb' : '#fff';
+          b.style.color = on ? '#fff' : '#2563eb';
+        }
+        go.textContent = m === 'draw' ? 'Draw answer' : (overlayShowing() ? 'Hide answer' : 'Show answer');
+      },
+    };
+    bShow.addEventListener('click', () => { setMode('show'); ui.refresh(); });
+    bDraw.addEventListener('click', () => { setMode('draw'); hideOverlay(); ui.refresh(); });
+    go.addEventListener('click', () => act(ui));
+    close.addEventListener('click', () => { hideOverlay(); box.remove(); });
+    box.__ui = ui;
+    ui.refresh();
+    return ui;
   }
 
   win.__puzzleLoopSolver = api;
-  if (!win.Game) return;
-  const status = addButton();
-  if (win.__plsRunNow) { win.__plsRunNow = 0; run(t => { status.textContent = t; }); }
+  if (!win.Game || !win.Game.dom) return;
+  const ui = buildPanel();
+  if (win.__plsRunNow) { win.__plsRunNow = 0; act(ui); }
 })();

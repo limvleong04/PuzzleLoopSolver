@@ -1,79 +1,146 @@
-# Puzzle Loop Solver
+# Slitherlink Solver
 
-Solves Slitherlink puzzles on [puzzle-loop.com](https://www.puzzle-loop.com/) and draws the loop on the board.
-It works for every size the site offers, from 5x5 up to the 40x50 Special Monthly.
+Two tools that solve Slitherlink ("Loop the Loop") puzzles. Both can either **show** you the answer over the
+board or **draw** it in for you, and you can switch between the two at any time. Neither uses AI: the solving is
+plain logic.
 
-No screenshots, no text recognition, no AI. The puzzle page already contains the numbers as text, so the
-solver reads them directly, works out the loop, checks the answer against the page's own answer check, and
-then draws the lines.
+| | Browser tool | Screen tool |
+|---|---|---|
+| Works on | puzzle-loop.com | Any website, app or picture showing a board with dots and numbers |
+| Reads the puzzle | From the page's own data, so always exact | From the screen, by finding the dots and reading the numbers |
+| You need | A bookmark (or the Tampermonkey extension) | Windows and the .NET 10 SDK |
 
-## Using it
+## Browser tool (puzzle-loop.com)
 
-Pick one of the two ways below.
+### Set it up, without any extension
 
-### Option A: userscript (adds a Solve button to every puzzle)
-
-1. Install the **Tampermonkey** browser extension.
-2. Open Tampermonkey's dashboard, choose **Create a new script**, delete the template, paste the whole of
-   `puzzle-loop-solver.user.js`, and save.
-3. Open any puzzle on puzzle-loop.com. A **Solve** button appears in the bottom-right corner. Click it.
-
-### Option B: bookmarklet (no extension)
-
-1. Build it once:
+1. Build the bookmark once:
 
    ```powershell
-   node make-bookmarklet.js
+   node browser/make-bookmarklet.js
    ```
 
-2. Create a new bookmark in your browser. Paste the entire contents of `bookmarklet.txt` as its URL.
-3. Open a puzzle and click the bookmark. It solves and draws straight away.
+2. Create a new bookmark in your browser and paste the whole of `browser/bookmarklet.txt` as its URL.
+   Call it "Loop Solver".
 
-## What happens when you click Solve
+Or, if you use **Tampermonkey**: create a new script, paste the whole of `browser/puzzle-loop-solver.user.js`,
+and save. The panel then appears on every puzzle by itself.
 
-1. Reads the puzzle from the page.
-2. Solves it (milliseconds for most sizes, about a third of a second for the 40x50 Monthly).
-3. Checks the answer against the solution check the page ships with. If it doesn't match, nothing is drawn.
-4. Draws the loop in one step. Any wrong lines you drew yourself are removed. Undo still works.
+### Use it
 
-If the site's **auto-submit** setting is on, the site marks the puzzle solved as soon as the last line
-lands. Nothing is ever sent to the Hall of Fame; that stays a separate button.
+Open a puzzle and click the bookmark. A small panel appears in the bottom-right corner:
+
+- **Show | Draw** chooses the mode. The choice is remembered.
+- In **Show** mode, **Show answer** lays the loop over the board in blue. Your board isn't changed, so you can
+  trace it yourself. Click again to hide it.
+- In **Draw** mode, **Draw answer** fills the loop in. Wrong lines you drew yourself are removed, and undo still
+  works.
+
+The bookmark runs straight away in whichever mode is selected. Before showing or drawing anything, the answer is
+checked against the solution check built into the page.
+
+If the site's **auto-submit** setting is on, the site counts the puzzle as solved as soon as the last line is
+drawn. Nothing is ever sent to the Hall of Fame; that stays a separate button.
+
+## Screen tool (any website)
+
+### Set it up
+
+```powershell
+cd desktop
+dotnet run -c Release
+```
+
+Or build once with `dotnet build -c Release` and start `desktop\bin\Release\net10.0-windows\LoopSolver.exe`.
+A small window appears in the bottom-right corner and stays on top.
+
+### Use it
+
+1. Choose **Show** or **Draw** at the top of the window (or press **Ctrl+Alt+M** to switch).
+2. Press **Ctrl+Alt+S** (or **Pick board**). The screen freezes. Drag a box around the puzzle board. A rough box
+   is fine; text and buttons around the board are ignored.
+3. In **Show** mode, the loop appears in blue right over the board. Clicks go straight through it, so you can
+   trace it on the page. **Ctrl+Alt+H** hides or shows it.
+4. In **Draw** mode, the tool clicks the lines in for you with the mouse. Press **Esc**, or just move the mouse,
+   to stop part-way.
+
+When a new puzzle loads in the same place, press **Ctrl+Alt+A** (**Read again**) instead of picking the area again.
+
+| Hotkey | What it does |
+|---|---|
+| **Ctrl+Alt+S** | Pick a board on screen, then show or draw the answer |
+| **Ctrl+Alt+A** | Read the same area again |
+| **Ctrl+Alt+H** | Hide or show the answer |
+| **Ctrl+Alt+M** | Switch between Show and Draw |
+
+### If a number is misread
+
+The window lists the numbers it read, one row per board row, with a dot for an empty cell. If the numbers it read
+don't give exactly one loop, it first tries the most doubtful ones as their next-best reading. If that still
+fails, it tells you. Compare the list with the board, fix the wrong number, and click **Solve these numbers**.
+
+### Tips
+
+- Pick the board before drawing on it. It copes with lines and crosses already drawn, but a board that is
+  completely drawn over hides the dots it needs.
+- The answer is placed where the board was when it was read. If you scroll or zoom the page, press **Ctrl+Alt+A**.
+- On very large boards, zoom the page in so each number is at least about 7 pixels tall.
+
+### Settings
+
+Stored in `%AppData%\LoopSolver\settings.json`. Close the tool before editing it.
+
+| Setting | Default | Notes |
+|---|---|---|
+| `Mode` | `Show` | `Show` or `Draw`. The buttons change it too. |
+| `DrawMethod` | `Click` | `Click` clicks the middle of each edge (puzzle-loop.com, Simon Tatham's Loopy). `Drag` drags from dot to dot, for sites where you draw by dragging, such as puzz.link. |
+| `ClickDelayMs` | `30` | Pause between clicks in Draw mode. Raise it if a site misses clicks. |
+| `LineColor` | `#1E90FF` | Colour of the answer in Show mode. |
 
 ## How the solver works
 
 The board is a set of edges, each one "line", "no line" or "unknown". It repeats these rules until nothing
 changes:
 
-- **Numbers:** once a number has all its lines, the rest of its edges are "no line". If it needs every
-  remaining edge, they are all lines.
-- **Dots:** every dot has either 0 or 2 lines. One line in with one way out means that way is a line.
-- **One loop only:** a line may not close a loop unless that loop uses every line on the board and meets
-  every number.
-- **Trial:** for each unknown edge, try "line" and "no line". If one leads to a contradiction, the other
-  is right. If both lead to the same result somewhere else, that result is right.
-- **Guess:** if the rules above get stuck (rare, only seen on the Monthly), it guesses one edge and backs
-  out if that guess fails.
+- **Numbers:** once a number has all its lines, its other edges are "no line". If it needs every remaining edge,
+  they are all lines.
+- **Dots:** every dot has either 0 or 2 lines.
+- **One loop only:** a line may not close a loop unless that loop uses every line and meets every number.
+- **Trial:** for each unknown edge, try "line" and "no line". If one leads to a contradiction, the other is right.
+  If both lead to the same result somewhere else, that result is right.
+- **Guess:** if the rules get stuck (rare), guess one edge and back out if it fails.
 
-## Command line and tests
+The screen tool also keeps looking after the first loop, to confirm it is the only one. A second loop means a
+number was probably misread.
 
-Solve a puzzle from its task text and size, optionally checking it against the page's hash:
-
-```powershell
-node cli.js c2a31323a22031g1a 5 5 90658ad1420ccd72d733a4417daf3944
-```
-
-Run the solver over the 15 real puzzles in `test/puzzles.json` (every size on the site), checking each answer
-against the site's own hash:
+## Checks
 
 ```powershell
 node test/run-tests.js
 ```
 
+Solves the 15 real puzzles in `test/puzzles.json` (every size on puzzle-loop.com, up to the 40x50 Monthly) with the
+browser tool's solver, and checks each answer against the site's own hash.
+
+```powershell
+desktop\bin\Release\net10.0-windows\LoopSolver.exe --selftest test\puzzles.json
+desktop\bin\Release\net10.0-windows\LoopSolver.exe --check test\boards\boards.json
+```
+
+The first runs the same 15 puzzles through the screen tool's solver. The second reads the screenshots in
+`test/boards` (puzzle-loop.com, Simon Tatham's Loopy and puzz.link, some with loose boxes and lines already
+drawn) and compares every number with the right answer. `--read <picture> [x y width height]` reads any picture.
+
 ## Files
 
 | File | What's in it |
 |---|---|
-| `puzzle-loop-solver.user.js` | The solver and the page button. Also loads in Node for the tools below. |
-| `cli.js` | Solve one puzzle from the command line and print the loop. |
-| `make-bookmarklet.js` | Builds `bookmarklet.txt` from the userscript. |
-| `test/puzzles.json`, `test/run-tests.js` | Real puzzles from the site with their answer hashes, and the test runner. |
+| `browser/puzzle-loop-solver.user.js` | Browser tool: solver and the Show/Draw panel. Also loads in Node for the tests. |
+| `browser/make-bookmarklet.js` | Builds `browser/bookmarklet.txt` from the script. |
+| `browser/cli.js` | Solve one puzzle-loop.com task from the command line and print the loop. |
+| `desktop/ControlForm.cs` | Screen tool window, hotkeys and the Show/Draw actions |
+| `desktop/BoardReader.cs`, `desktop/DigitClassifier.cs` | Finding the grid, reading the numbers and drawn lines |
+| `desktop/Solver.cs`, `desktop/AnswerFinder.cs` | The solver, and retrying doubtful numbers |
+| `desktop/AnswerOverlayForm.cs`, `desktop/MouseDriver.cs` | Show mode overlay and Draw mode clicking |
+| `desktop/RegionPickerForm.cs`, `desktop/AppSettings.cs`, `desktop/NativeMethods.cs`, `desktop/ConsoleCommands.cs` | Box picker, settings, Windows calls, command-line checks |
+| `test/` | Real puzzles with their answer hashes, and screenshots with the right numbers |

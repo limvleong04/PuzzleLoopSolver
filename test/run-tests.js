@@ -4,7 +4,7 @@
 'use strict';
 const crypto = require('crypto');
 const path = require('path');
-const { solveTask } = require('../puzzle-loop-solver.user.js');
+const { solveTask } = require('../browser/puzzle-loop-solver.user.js');
 const puzzles = require('./puzzles.json');
 
 let failed = 0;

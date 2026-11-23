@@ -1,0 +1,11 @@
+﻿[
+  { "file": "puzzle-loop-10x10.jpg", "site": "puzzle-loop.com", "area": [338, 160, 280, 282], "w": 10, "h": 10, "task": "a222b23b2b13103a332a1a12b2a2a2a2a232a11c2b33a2c1a22a232123a2222d2b21e32a2322333d" },
+  { "file": "puzzle-loop-10x10.jpg", "site": "puzzle-loop.com, loose box with toolbar and caption", "area": [300, 85, 360, 390], "w": 10, "h": 10, "task": "a222b23b2b13103a332a1a12b2a2a2a2a232a11c2b33a2c1a22a232123a2222d2b21e32a2322333d" },
+  { "file": "puzzle-loop-5x5-user-solved.png", "site": "puzzle-loop.com, already solved, with crosses", "area": [512, 430, 360, 360], "w": 5, "h": 5, "task": "a21a3a222a3b232c20233a" },
+  { "file": "puzzle-loop-5x5-user-solved.png", "site": "puzzle-loop.com, already solved, loose box with caption", "area": [470, 390, 440, 430], "w": 5, "h": 5, "task": "a21a3a222a3b232c20233a" },
+  { "file": "tatham-loopy-10x10.jpg", "site": "Simon Tatham's Loopy", "area": [255, 126, 292, 292], "w": 10, "h": 10, "task": "b3b3b2a2c13112c2e3a1a12220c33b2a2c2223b0e1a3c3a2d2a1c2202b311a2a3223c" },
+  { "file": "tatham-loopy-10x10.jpg", "site": "Simon Tatham's Loopy, loose box with menu and link text", "area": [150, 95, 500, 360], "w": 10, "h": 10, "task": "b3b3b2a2c13112c2e3a1a12220c33b2a2c2223b0e1a3c3a2d2a1c2202b311a2a3223c" },
+  { "file": "puzz-link-10x10.jpg", "site": "puzz.link", "area": [195, 115, 412, 415], "w": 10, "h": 10, "task": "c32a2a2a2312a3223d3b21c0e213a2c12e2121c1a322131b212a3e33b02b1122a3g" },
+  { "file": "puzz-link-10x10.jpg", "site": "puzz.link, loose box with timer and buttons", "area": [150, 70, 500, 520], "w": 10, "h": 10, "task": "c32a2a2a2312a3223d3b21c0e213a2c12e2121c1a322131b212a3e33b02b1122a3g" },
+  { "file": "puzzle-loop-20x20-partly-drawn.jpg", "site": "puzzle-loop.com, small cells, 5 lines and 2 crosses drawn", "area": [270, 102, 415, 418], "w": 20, "h": 20, "task": "b2a222221a23a232d2111d3c3b223g2c212a2a21d0b02d2e11a3b2c213231c2a2a2c303c1a1f22b2d21b2e222f2212b23h2g3c3a3b1a3232b0a0c2a13c3d2a2b3d3a1223a3b3e3d1232c3a32c2c3a3a2b33a12b32e21c1a21d2c221e23b131b3b1b3b3b2a3e0a2g23d12b2a1a333i2b1a13a212a1332b222b1232b2d" }
+]

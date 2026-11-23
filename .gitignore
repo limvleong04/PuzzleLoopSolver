@@ -1,2 +1,4 @@
 bookmarklet.txt
 node_modules/
+desktop/bin/
+desktop/obj/
