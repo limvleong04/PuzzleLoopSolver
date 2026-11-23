@@ -18,8 +18,7 @@ internal sealed class AppSettings
 
     public string LineColor { get; set; } = "#1E90FF";
 
-    // Hotkeys, written like "Ctrl+Alt+S" or "Ctrl+Shift+F9". The defaults stay clear of Puffer Helper's
-    // Ctrl+Alt+Q, W, R and H, so both tools can run at once.
+    // Hotkeys, written like "Ctrl+Alt+S" or "Ctrl+Shift+F9". Change one here if another app already uses it.
     public string HotkeySolve { get; set; } = "Ctrl+Alt+S";
     public string HotkeyAgain { get; set; } = "Ctrl+Alt+A";
     public string HotkeyMode { get; set; } = "Ctrl+Alt+M";

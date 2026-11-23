@@ -522,7 +522,7 @@
       if (text) e.textContent = text;
       return e;
     };
-    // Same look as the desktop tool and Puffer Helper: dark, white title, muted grey for everything else.
+    // Same look as the desktop tool: dark, white title, muted grey for everything else.
     const box = el('div', 'position:fixed;right:16px;bottom:16px;z-index:2147483647;width:260px;box-sizing:border-box;' +
       'font:13px/1.4 ' + font + ';color:#fff;text-align:left;background:#1c1c22;border:1px solid #2f2f38;border-radius:10px;' +
       'padding:10px 12px 12px;box-shadow:0 6px 20px rgba(0,0,0,.35)');

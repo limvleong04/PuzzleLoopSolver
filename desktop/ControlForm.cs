@@ -4,8 +4,7 @@ using static LoopSolver.NativeMethods;
 namespace LoopSolver;
 
 /// <summary>
-/// The small always-on-top window, in the same style as Puffer Helper: dark, borderless, out of the taskbar and
-/// Alt+Tab. Hotkeys do the work and right-click opens the menu. Drag it by its text. Clicking it doesn't take
+/// The small always-on-top window: dark, borderless, out of the taskbar and Alt+Tab. Hotkeys do the work and right-click opens the menu. Drag it by its text. Clicking it doesn't take
 /// focus from the page, except in the numbers box, which you can type into.
 /// </summary>
 internal sealed class ControlForm : Form
@@ -70,11 +69,11 @@ internal sealed class ControlForm : Form
         _header.Controls.Add(_titleLabel);
         _header.Controls.Add(_modeLabel);
 
-        _statusLabel = new Label { Dock = DockStyle.Top, Height = S(52), ForeColor = Muted, Font = new Font("Segoe UI", 8.5f), AutoEllipsis = true };
+        _statusLabel = new Label { Dock = DockStyle.Top, Height = S(30), ForeColor = Muted, Font = new Font("Segoe UI", 8.5f), AutoEllipsis = true };
         _numbersCaption = new Label
         {
             Dock = DockStyle.Top, Height = S(22), ForeColor = Muted, Font = new Font("Segoe UI", 8f), Visible = false,
-            Text = "Numbers read. Fix a wrong one, then press Ctrl+Enter.", TextAlign = ContentAlignment.BottomLeft,
+            Text = "Numbers read. Fix a wrong one, then press Ctrl+Enter.", TextAlign = ContentAlignment.TopLeft,
         };
         _numbers = new TextBox
         {
@@ -92,7 +91,11 @@ internal sealed class ControlForm : Form
         };
         _numbersPanel = new Panel { Dock = DockStyle.Fill, BackColor = Field, Padding = new Padding(S(8), S(6), S(4), S(4)), Visible = false };
         _numbersPanel.Controls.Add(_numbers);
-        _footerLabel = new Label { Dock = DockStyle.Bottom, Height = S(40), ForeColor = Muted, Font = new Font("Segoe UI", 8f), TextAlign = ContentAlignment.MiddleLeft };
+        _footerLabel = new Label { Dock = DockStyle.Bottom, Height = S(40), ForeColor = Muted, Font = new Font("Segoe UI", 8f), TextAlign = ContentAlignment.BottomLeft };
+
+        // Each part is exactly as tall as its text, plus a small gap below it, so the window has no empty bands.
+        _numbersCaption.Height = TextHeight("Numbers", _numbersCaption.Font) + S(4);
+        _footerLabel.Height = TextHeight("Ctrl\nCtrl", _footerLabel.Font) + S(10);
 
         // Docking is laid out from the last-added control to the first: Fill goes in first, the header last.
         Controls.Add(_numbersPanel);
@@ -475,7 +478,18 @@ internal sealed class ControlForm : Form
 
     // ---- layout, menu, dragging ---------------------------------------------------------------------
 
-    private void SetStatus(string text) => _statusLabel.Text = text;
+    /// <summary>Shows a message, and fits the status line to it (one to three lines).</summary>
+    private void SetStatus(string text)
+    {
+        _statusLabel.Text = text;
+        int width = Width - Padding.Horizontal;
+        int lineHeight = TextHeight("A", _statusLabel.Font);
+        int wrapped = TextRenderer.MeasureText(text, _statusLabel.Font, new Size(width, int.MaxValue), TextFormatFlags.WordBreak).Height;
+        _statusLabel.Height = Math.Clamp(wrapped, lineHeight, 3 * lineHeight) + S(10);
+        FitHeight();
+    }
+
+    private static int TextHeight(string text, Font font) => TextRenderer.MeasureText(text, font).Height;
 
     /// <summary>Puts the numbers in the box and sizes it: up to 20 rows, scroll bars only when a board doesn't fit.</summary>
     private void ShowNumbers(string text)
@@ -490,7 +504,9 @@ internal sealed class ControlForm : Form
         var want = tall && wide ? ScrollBars.Both : tall ? ScrollBars.Vertical : wide ? ScrollBars.Horizontal : ScrollBars.None;
         if (_numbers.ScrollBars != want) _numbers.ScrollBars = want;
 
-        _numbersHeight = Math.Min(lines.Count, MaxRowsShown) * _numbers.Font.Height + _numbersPanel.Padding.Vertical + S(4)
+        // The box's real line spacing, measured, so there are no spare rows at the bottom.
+        int lineHeight = TextHeight("0\n0", _numbers.Font) - TextHeight("0", _numbers.Font);
+        _numbersHeight = Math.Min(lines.Count, MaxRowsShown) * lineHeight + _numbersPanel.Padding.Vertical + S(2)
                          + (wide ? SystemInformation.HorizontalScrollBarHeight : 0);
         _numbersCaption.Visible = _numbersPanel.Visible = true;
         FitHeight();
@@ -499,7 +515,7 @@ internal sealed class ControlForm : Form
     private void FitHeight()
     {
         int numbers = _numbersPanel.Visible ? _numbersCaption.Height + _numbersHeight : 0;
-        Height = Padding.Vertical + _header.Height + _statusLabel.Height + numbers + _footerLabel.Height + S(4);
+        Height = Padding.Vertical + _header.Height + _statusLabel.Height + numbers + _footerLabel.Height;
         KeepOnScreen();
     }
 
@@ -510,7 +526,7 @@ internal sealed class ControlForm : Form
             Location = new Point(p[0], p[1]);
             return;
         }
-        // Bottom right, so it doesn't sit on top of Puffer Helper (top right).
+        // Bottom right of the main screen.
         Rectangle work = Screen.PrimaryScreen?.WorkingArea ?? SystemInformation.VirtualScreen;
         Location = new Point(work.Right - Width - S(16), work.Bottom - S(520));
     }

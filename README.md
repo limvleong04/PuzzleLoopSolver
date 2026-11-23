@@ -62,8 +62,8 @@ dotnet run -c Release
 ```
 
 Or build once with `dotnet build -c Release` and start `desktop\bin\Release\net10.0-windows\LoopSolver.exe`.
-A small dark window appears in the bottom-right corner, in the same style as Puffer Helper. It stays on top, isn't
-in the taskbar, and doesn't take focus away from the page when you click it. Drag it by its text to move it.
+A small dark window appears in the bottom-right corner. It stays on top, isn't in the taskbar, and doesn't take
+focus away from the page when you click it. Drag it by its text to move it.
 **Right-click** it for the menu, including **Exit**.
 
 ![The Loop Solver window after reading a 10 x 10 board](docs/screen-tool-window.png)
@@ -87,9 +87,8 @@ When a new puzzle loads in the same place, press **Ctrl+Alt+A** instead of picki
 | **Ctrl+Alt+M** | Switch between Show and Draw |
 | **Ctrl+Alt+L** | Hide or show Loop Solver: the window and the blue answer together |
 
-The hotkeys stay clear of Puffer Helper's (Ctrl+Alt+Q, W, R and H), so both can run at once. Any of them can be
-changed in the settings file. The right-click menu also has **Hide the answer** on its own, without hiding the
-window.
+If another app already uses one of these hotkeys, the window says so; change it in the settings file. The
+right-click menu also has **Hide the answer** on its own, without hiding the window.
 
 ### If a number is misread
 
