@@ -515,32 +515,44 @@
   function buildPanel() {
     const existing = document.getElementById('pls-panel');
     if (existing) return existing.__ui;
-    const box = document.createElement('div');
+    const font = '"Segoe UI",system-ui,sans-serif';
+    const el = (tag, css, text) => {
+      const e = document.createElement(tag);
+      e.style.cssText = css;
+      if (text) e.textContent = text;
+      return e;
+    };
+    const box = el('div', 'position:fixed;right:16px;bottom:16px;z-index:2147483647;width:260px;box-sizing:border-box;' +
+      'font:13px/1.4 ' + font + ';color:#1f2937;text-align:left;background:#fff;border:1px solid #d1d5db;border-radius:10px;' +
+      'padding:12px;box-shadow:0 4px 16px rgba(0,0,0,.15)');
     box.id = 'pls-panel';
-    box.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483647;width:300px;font:13px system-ui,sans-serif;color:#222;' +
-      'background:#fff;border:1px solid #ccc;border-radius:8px;padding:10px;box-shadow:0 2px 10px rgba(0,0,0,.18)';
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:8px;align-items:center';
-    const seg = document.createElement('div');
-    seg.style.cssText = 'display:flex;border:1px solid #2563eb;border-radius:6px;overflow:hidden';
-    const segBtn = (label, title) => {
-      const b = document.createElement('button');
-      b.textContent = label; b.title = title;
-      b.style.cssText = 'font:600 13px system-ui,sans-serif;padding:5px 10px;border:0;cursor:pointer';
+
+    // Title and close
+    const head = el('div', 'display:flex;align-items:center;justify-content:space-between;margin-bottom:10px');
+    const close = el('button', 'font:20px/1 ' + font + ';border:0;background:none;color:#6b7280;cursor:pointer;padding:0 2px', '×');
+    close.title = 'Close';
+    head.append(el('div', 'font:600 14px ' + font, 'Loop Solver'), close);
+
+    // Show | Draw
+    const seg = el('div', 'display:flex;border:1px solid #d1d5db;border-radius:6px;overflow:hidden;margin-bottom:8px');
+    const segBtn = (label, tip) => {
+      const b = el('button', 'flex:1;font:600 13px ' + font + ';padding:6px 0;border:0;cursor:pointer', label);
+      b.title = tip;
       seg.appendChild(b);
       return b;
     };
     const bShow = segBtn('Show', 'Show the answer over the board without changing it');
     const bDraw = segBtn('Draw', 'Fill the answer in on the board');
-    const go = document.createElement('button');
-    go.style.cssText = 'flex:1;font:600 13px system-ui,sans-serif;padding:6px 10px;border:0;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer';
-    const close = document.createElement('button');
-    close.textContent = '×'; close.title = 'Close';
-    close.style.cssText = 'font:16px system-ui,sans-serif;border:0;background:none;color:#666;cursor:pointer;padding:0 4px';
-    const status = document.createElement('div');
-    status.style.cssText = 'margin-top:8px;color:#444;min-height:1em';
-    row.append(seg, go, close);
-    box.append(row, status);
+
+    // The action, and what happened
+    const go = el('button', 'display:block;width:100%;box-sizing:border-box;font:600 13px ' + font + ';padding:8px 0;border:0;' +
+      'border-radius:6px;background:#2563eb;color:#fff;cursor:pointer');
+    go.addEventListener('mouseenter', () => { go.style.background = '#1d4ed8'; });
+    go.addEventListener('mouseleave', () => { go.style.background = '#2563eb'; });
+    const status = el('div', 'margin-top:10px;padding:8px 10px;border-radius:6px;background:#f3f4f6;color:#374151;font-size:12px',
+      'Pick Show or Draw, then press the blue button.');
+
+    box.append(head, seg, go, status);
     document.body.appendChild(box);
 
     const ui = {
@@ -549,7 +561,7 @@
         const m = getMode();
         for (const [b, on] of [[bShow, m === 'show'], [bDraw, m === 'draw']]) {
           b.style.background = on ? '#2563eb' : '#fff';
-          b.style.color = on ? '#fff' : '#2563eb';
+          b.style.color = on ? '#fff' : '#374151';
         }
         go.textContent = m === 'draw' ? 'Draw answer' : (overlayShowing() ? 'Hide answer' : 'Show answer');
       },

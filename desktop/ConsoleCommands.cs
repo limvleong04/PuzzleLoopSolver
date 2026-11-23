@@ -19,6 +19,7 @@ internal static class ConsoleCommands
                 "--selftest" when args.Length >= 2 => SelfTest(args[1]),
                 "--check" when args.Length >= 2 => CheckBoards(args[1]),
                 "--read" when args.Length >= 2 => ReadOne(args[1], args.Skip(2).Select(int.Parse).ToArray()),
+                "--snapshot" when args.Length >= 2 => Snapshot(args[1], args.Skip(2).ToArray()),
                 _ => Usage(),
             };
         }
@@ -139,6 +140,31 @@ internal static class ConsoleCommands
         if (corrected.Count > 0) Console.WriteLine($"Re-read {corrected.Count} doubtful number(s) to make it solvable.");
         Console.WriteLine(r.Ok ? $"Solved in {r.Milliseconds} ms{(r.Unique ? ", the only answer." : ". " + r.Message)}" : r.Message);
         return r.Ok ? 0 : 1;
+    }
+
+    /// <summary>Saves a picture of the window, optionally as it looks after reading a board from a picture.</summary>
+    private static int Snapshot(string png, string[] board)
+    {
+        ApplicationConfiguration.Initialize();
+        var settings = new AppSettings { ReadOnly = true };
+        using var form = new ControlForm(settings, preview: true) { ShowInTaskbar = false, Location = new Point(-4000, -4000) };
+        form.Show();
+        if (board.Length >= 1)
+        {
+            using var full = new Bitmap(board[0]);
+            int[] a = board.Skip(1).Select(int.Parse).ToArray();
+            Rectangle rect = a.Length == 4 ? new Rectangle(a[0], a[1], a[2], a[3]) : new Rectangle(0, 0, full.Width, full.Height);
+            using var crop = full.Clone(rect, PixelFormat.Format24bppRgb);
+            BoardReading? rd = BoardReader.Read(crop, out string error);
+            if (rd == null) throw new InvalidOperationException(error);
+            form.PreviewReading(rd);
+        }
+        Application.DoEvents();
+        using var bmp = new Bitmap(form.Width, form.Height);
+        form.DrawToBitmap(bmp, new Rectangle(Point.Empty, form.Size));
+        bmp.Save(png, ImageFormat.Png);
+        Console.WriteLine($"Saved {png} ({form.Width} x {form.Height}).");
+        return 0;
     }
 
     private static string Show(sbyte v) => v < 0 ? "empty" : v.ToString();

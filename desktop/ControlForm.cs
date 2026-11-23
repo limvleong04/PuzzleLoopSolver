@@ -1,4 +1,4 @@
-using static LoopSolver.NativeMethods;
+﻿using static LoopSolver.NativeMethods;
 
 namespace LoopSolver;
 
@@ -6,9 +6,17 @@ namespace LoopSolver;
 internal sealed class ControlForm : Form
 {
     private const int HkPick = 1, HkAgain = 2, HkHide = 3, HkMode = 4;
+
     private static readonly Color Accent = Color.FromArgb(37, 99, 235);
+    private static readonly Color AccentHover = Color.FromArgb(29, 78, 216);
+    private static readonly Color AccentDown = Color.FromArgb(30, 64, 175);
+    private static readonly Color Border = Color.FromArgb(209, 213, 219);
+    private static readonly Color Text1 = Color.FromArgb(31, 41, 55);
+    private static readonly Color Text2 = Color.FromArgb(107, 114, 128);
+    private static readonly Color Panel = Color.FromArgb(243, 244, 246);
 
     private readonly AppSettings _settings;
+    private readonly bool _preview;
     private readonly Button _btnShow = new(), _btnDraw = new(), _btnPick = new(), _btnAgain = new(), _btnToggle = new(), _btnSolveText = new();
     private readonly Label _status = new();
     private readonly TextBox _numbers = new();
@@ -20,97 +28,151 @@ internal sealed class ControlForm : Form
     private sbyte[]? _answer;
     private bool _busy;
 
-    public ControlForm(AppSettings settings)
+    /// <param name="preview">Build the window only to take a picture of it: no hotkeys.</param>
+    public ControlForm(AppSettings settings, bool preview = false)
     {
         _settings = settings;
+        _preview = preview;
         Text = "Loop Solver";
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
         TopMost = true;
         StartPosition = FormStartPosition.Manual;
+        BackColor = Color.White;
         Font = new Font("Segoe UI", 9f);
-        AutoSize = true;
-        AutoSizeMode = AutoSizeMode.GrowAndShrink;
         BuildLayout();
         PlaceWindow();
         RefreshButtons();
         SetStatus("Press Ctrl+Alt+S (or Pick board), then drag a box around a Slitherlink board anywhere on screen.");
     }
 
+    private int S(int logical) => LogicalToDeviceUnits(logical);
+
+    // ---- layout ----
+
     private void BuildLayout()
     {
-        int width = LogicalToDeviceUnits(340);
-        var root = new FlowLayoutPanel
+        var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, Padding = new Padding(S(12)), BackColor = Color.White };
+        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        int height = 0;
+        void AddRow(Control c, int rowHeight, int gapAfter)
         {
-            FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(8),
-        };
+            c.Dock = DockStyle.Fill;
+            c.Margin = new Padding(0, 0, 0, S(gapAfter));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, S(rowHeight + gapAfter)));
+            root.Controls.Add(c);
+            height += rowHeight + gapAfter;
+        }
 
-        var modeRow = Row();
-        modeRow.Controls.Add(new Label { Text = "Mode", AutoSize = true, Margin = new Padding(0, 8, 8, 0) });
-        MakeToggle(_btnShow, "Show", "Show the answer over the board. Nothing on the page changes. (Ctrl+Alt+M switches)");
-        MakeToggle(_btnDraw, "Draw", "Click the answer into the board for you. (Ctrl+Alt+M switches)");
+        // Show | Draw
+        StyleSegment(_btnShow, "Show", "Show the answer over the board. Nothing on the page changes. (Ctrl+Alt+M switches)");
+        StyleSegment(_btnDraw, "Draw", "Click the answer into the board for you. (Ctrl+Alt+M switches)");
         _btnShow.Click += (_, _) => SetMode("Show");
         _btnDraw.Click += (_, _) => SetMode("Draw");
-        modeRow.Controls.AddRange([_btnShow, _btnDraw]);
-        root.Controls.Add(modeRow);
+        AddRow(TwoUp(_btnShow, _btnDraw, gap: 0), 30, 12);
 
-        var actions = Row();
-        MakeButton(_btnPick, "Pick board", "Drag a box around a board on screen (Ctrl+Alt+S)");
-        MakeButton(_btnAgain, "Read again", "Read the same area again, for example after a new puzzle loads (Ctrl+Alt+A)");
-        MakeButton(_btnToggle, "Hide answer", "Hide or show the answer over the board (Ctrl+Alt+H)");
+        // Actions
+        StylePrimary(_btnPick, "Pick board", "Drag a box around a board on screen (Ctrl+Alt+S)");
         _btnPick.Click += (_, _) => PickBoard();
+        AddRow(_btnPick, 36, 6);
+
+        StyleSecondary(_btnAgain, "Read again", "Read the same area again, for example after a new puzzle loads (Ctrl+Alt+A)");
+        StyleSecondary(_btnToggle, "Hide answer", "Hide or show the answer over the board (Ctrl+Alt+H)");
         _btnAgain.Click += (_, _) => ReadAgain();
         _btnToggle.Click += (_, _) => ToggleAnswer();
-        actions.Controls.AddRange([_btnPick, _btnAgain, _btnToggle]);
-        root.Controls.Add(actions);
+        AddRow(TwoUp(_btnAgain, _btnToggle, gap: 6), 30, 12);
 
-        _status.AutoSize = true;
-        _status.MaximumSize = new Size(width, 0);
-        _status.Margin = new Padding(3, 6, 3, 10);
-        root.Controls.Add(_status);
+        // Status
+        _status.AutoSize = false;
+        _status.BackColor = Panel;
+        _status.ForeColor = Text1;
+        _status.Padding = new Padding(S(8), S(6), S(8), S(6));
+        _status.TextAlign = ContentAlignment.TopLeft;
+        _status.AutoEllipsis = true;
+        AddRow(_status, 76, 14);
 
-        root.Controls.Add(new Label
-        {
-            Text = "Numbers read (a dot means empty). If one is wrong, fix it here and solve again.",
-            AutoSize = true, MaximumSize = new Size(width, 0),
-        });
+        // Numbers read
+        var caption = new Label { Text = "Numbers read (a dot is an empty cell)", ForeColor = Text2, TextAlign = ContentAlignment.BottomLeft, AutoSize = false };
+        AddRow(caption, 20, 4);
         _numbers.Multiline = true;
-        _numbers.ScrollBars = ScrollBars.Both;
+        _numbers.ScrollBars = ScrollBars.None; // FitScrollBars adds them when a board doesn't fit
         _numbers.WordWrap = false;
-        _numbers.Font = new Font("Consolas", 9.5f);
-        _numbers.Size = new Size(width, LogicalToDeviceUnits(150));
-        root.Controls.Add(_numbers);
+        _numbers.BorderStyle = BorderStyle.FixedSingle;
+        _numbers.Font = new Font("Consolas", 10f);
+        _numbers.ForeColor = Text1;
+        _numbers.PlaceholderText = "The numbers appear here after a board is read. If one is wrong, fix it and click Solve these numbers.";
+        AddRow(_numbers, 166, 6);
 
-        MakeButton(_btnSolveText, "Solve these numbers", "Solve with the numbers in the box, on the board read last");
+        StyleSecondary(_btnSolveText, "Solve these numbers", "Solve with the numbers in the box, on the board read last");
         _btnSolveText.Click += (_, _) => SolveFromText();
-        root.Controls.Add(_btnSolveText);
+        AddRow(_btnSolveText, 30, 12);
+
+        // Hotkeys
+        var keys = new TableLayoutPanel { ColumnCount = 2, RowCount = 2, BackColor = Color.White };
+        keys.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        keys.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        keys.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        keys.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        foreach (string k in new[] { "Ctrl+Alt+S  pick a board", "Ctrl+Alt+A  read again", "Ctrl+Alt+H  hide or show", "Ctrl+Alt+M  switch mode" })
+            keys.Controls.Add(new Label
+            {
+                Text = k, ForeColor = Text2, Font = new Font("Segoe UI", 8f), Dock = DockStyle.Fill, Margin = Padding.Empty,
+                TextAlign = ContentAlignment.MiddleLeft, AutoSize = false,
+            });
+        AddRow(keys, 34, 0);
 
         Controls.Add(root);
+        ClientSize = new Size(S(340), S(height + 24));
     }
 
-    private static FlowLayoutPanel Row() => new()
+    private static TableLayoutPanel TwoUp(Control left, Control right, int gap)
     {
-        FlowDirection = FlowDirection.LeftToRight, WrapContents = false, AutoSize = true, Margin = new Padding(0, 0, 0, 4),
-    };
+        var t = new TableLayoutPanel { ColumnCount = 2, RowCount = 1, BackColor = Color.White };
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        left.Dock = right.Dock = DockStyle.Fill;
+        left.Margin = new Padding(0, 0, gap / 2, 0);
+        right.Margin = new Padding(gap - gap / 2, 0, 0, 0);
+        t.Controls.Add(left, 0, 0);
+        t.Controls.Add(right, 1, 0);
+        return t;
+    }
 
-    private void MakeButton(Button b, string text, string tip)
+    private void StyleBase(Button b, string text, string tip)
     {
         b.Text = text;
-        b.AutoSize = true;
-        b.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        b.Padding = new Padding(6, 2, 6, 2);
-        b.UseVisualStyleBackColor = true;
+        b.FlatStyle = FlatStyle.Flat;
+        b.Cursor = Cursors.Hand;
+        b.UseVisualStyleBackColor = false;
         _tips.SetToolTip(b, tip);
     }
 
-    private void MakeToggle(Button b, string text, string tip)
+    private void StylePrimary(Button b, string text, string tip)
     {
-        MakeButton(b, text, tip);
-        b.FlatStyle = FlatStyle.Flat;
-        b.FlatAppearance.BorderColor = Accent;
-        b.Margin = new Padding(0, 3, 0, 3);
-        b.MinimumSize = new Size(LogicalToDeviceUnits(64), 0);
+        StyleBase(b, text, tip);
+        b.BackColor = Accent;
+        b.ForeColor = Color.White;
+        b.Font = new Font("Segoe UI Semibold", 9.5f);
+        b.FlatAppearance.BorderSize = 0;
+        b.FlatAppearance.MouseOverBackColor = AccentHover;
+        b.FlatAppearance.MouseDownBackColor = AccentDown;
+    }
+
+    private void StyleSecondary(Button b, string text, string tip)
+    {
+        StyleBase(b, text, tip);
+        b.BackColor = Color.White;
+        b.ForeColor = Text1;
+        b.FlatAppearance.BorderColor = Border;
+        b.FlatAppearance.MouseOverBackColor = Panel;
+        b.FlatAppearance.MouseDownBackColor = Border;
+    }
+
+    private void StyleSegment(Button b, string text, string tip)
+    {
+        StyleBase(b, text, tip);
+        b.Font = new Font("Segoe UI Semibold", 9f);
     }
 
     private void RefreshButtons()
@@ -127,10 +189,32 @@ internal sealed class ControlForm : Form
     private static void Highlight(Button b, bool on)
     {
         b.BackColor = on ? Accent : Color.White;
-        b.ForeColor = on ? Color.White : Accent;
+        b.ForeColor = on ? Color.White : Text1;
+        b.FlatAppearance.BorderColor = on ? Accent : Border;
+        b.FlatAppearance.MouseOverBackColor = on ? Accent : Panel;
+        b.FlatAppearance.MouseDownBackColor = on ? Accent : Border;
     }
 
     private void SetStatus(string text) => _status.Text = text;
+
+    /// <summary>Puts the numbers in the box, with scroll bars only when a big board doesn't fit.</summary>
+    private void ShowNumbers(string text)
+    {
+        _numbers.Text = text;
+        var lines = text.Split('\n').Select(l => l.TrimEnd('\r')).Where(l => l.Length > 0).ToList();
+        string longest = lines.Count == 0 ? "" : lines.MaxBy(l => l.Length)!;
+        int textW = TextRenderer.MeasureText(longest, _numbers.Font, Size.Empty, TextFormatFlags.NoPadding).Width + S(6);
+        int textH = lines.Count * _numbers.Font.Height + S(4);
+        Size inner = _numbers.ClientSize;
+        bool tall = false, wide = false;
+        for (int pass = 0; pass < 2; pass++) // a scroll bar on one side takes room from the other
+        {
+            tall = textH > inner.Height - (wide ? SystemInformation.HorizontalScrollBarHeight : 0);
+            wide = textW > inner.Width - (tall ? SystemInformation.VerticalScrollBarWidth : 0);
+        }
+        var want = tall && wide ? ScrollBars.Both : tall ? ScrollBars.Vertical : wide ? ScrollBars.Horizontal : ScrollBars.None;
+        if (_numbers.ScrollBars != want) _numbers.ScrollBars = want;
+    }
 
     private void SetMode(string mode)
     {
@@ -138,8 +222,21 @@ internal sealed class ControlForm : Form
         _settings.Save();
         RefreshButtons();
         SetStatus(_settings.DrawMode
-            ? "Draw mode: the board is clicked in for you. Pick board, or Read again (Ctrl+Alt+A) for the board read last."
+            ? "Draw mode: the answer is clicked in for you. Pick a board, or press Read again for the one read last."
             : "Show mode: the answer appears over the board and nothing on the page changes.");
+    }
+
+    /// <summary>Fills the window as if a board had just been read, for a picture of it (--snapshot).</summary>
+    internal void PreviewReading(BoardReading reading)
+    {
+        _reading = reading;
+        ShowNumbers(reading.CluesAsText());
+        var (result, _) = AnswerFinder.Solve(reading);
+        _answer = result.Edges;
+        _settings.Area = [0, 0, 1, 1];
+        SetStatus(result.Ok ? $"Answer shown in blue. {reading.Width} x {reading.Height}, solved in {result.Milliseconds} ms." : result.Message);
+        RefreshButtons();
+        _btnToggle.Text = "Hide answer";
     }
 
     // ---- actions ----
@@ -246,7 +343,7 @@ internal sealed class ControlForm : Form
         _area = area;
         _reading = reading;
         _answer = null;
-        _numbers.Text = reading.CluesAsText();
+        ShowNumbers(reading.CluesAsText());
         await SolveAndApply();
     }
 
@@ -256,11 +353,10 @@ internal sealed class ControlForm : Form
         SetStatus($"Solving {rd.Width} x {rd.Height}...");
         await Task.Delay(1);
         var (result, corrected) = AnswerFinder.Solve(rd);
-        if (corrected.Count > 0) _numbers.Text = rd.CluesAsText();
+        if (corrected.Count > 0) ShowNumbers(rd.CluesAsText());
         if (!result.Ok)
         {
-            SetStatus($"Read a {rd.Width} x {rd.Height} board, but no loop fits the numbers I read, so one is probably misread. " +
-                      "Compare the box below with the board, fix it, then click Solve these numbers.");
+            SetStatus("No loop fits the numbers I read, so one is probably misread. Fix it in the box below, then click Solve these numbers.");
             return;
         }
         _answer = result.Edges;
@@ -268,9 +364,9 @@ internal sealed class ControlForm : Form
         if (corrected.Count > 0)
         {
             int c = corrected[0];
-            what += $" I re-read the number in row {c / rd.Width + 1}, column {c % rd.Width + 1} as {rd.Clues[c]}.";
+            what += $" Re-read row {c / rd.Width + 1}, column {c % rd.Width + 1} as {rd.Clues[c]}.";
         }
-        if (!result.Unique) what += $" Careful: {result.Message} A number may be misread; check the box below.";
+        if (!result.Unique) what += " More than one loop fits, so a number may be misread. Check the box below.";
 
         if (_settings.DrawMode)
             await DrawAnswer(what);
@@ -310,7 +406,7 @@ internal sealed class ControlForm : Form
 
         string removed = !_settings.DragToDraw && toRemove.Count > 0 ? $" and removed {toRemove.Count} wrong ones" : "";
         string leftOver = _settings.DragToDraw && toRemove.Count > 0
-            ? $" {toRemove.Count} lines already on the board aren't part of the answer; remove those yourself." : "";
+            ? $" {toRemove.Count} lines on the board aren't part of the answer; remove those yourself." : "";
         SetStatus(stopped ?? $"Drew {toAdd.Count} lines{removed}. {what}{leftOver}");
     }
 
@@ -378,13 +474,14 @@ internal sealed class ControlForm : Form
         else
         {
             Rectangle wa = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1280, 720);
-            Location = new Point(wa.Right - LogicalToDeviceUnits(390), wa.Bottom - LogicalToDeviceUnits(470));
+            Location = new Point(wa.Right - Width - S(16), wa.Bottom - Height - S(16));
         }
     }
 
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
+        if (_preview) return;
         var taken = new List<string>();
         foreach (var (id, key, name) in new[] { (HkPick, Keys.S, "Ctrl+Alt+S"), (HkAgain, Keys.A, "Ctrl+Alt+A"), (HkHide, Keys.H, "Ctrl+Alt+H"), (HkMode, Keys.M, "Ctrl+Alt+M") })
             if (!RegisterHotKey(Handle, id, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, (uint)key))
@@ -395,7 +492,8 @@ internal sealed class ControlForm : Form
 
     protected override void OnHandleDestroyed(EventArgs e)
     {
-        for (int id = HkPick; id <= HkMode; id++) UnregisterHotKey(Handle, id);
+        if (!_preview)
+            for (int id = HkPick; id <= HkMode; id++) UnregisterHotKey(Handle, id);
         base.OnHandleDestroyed(e);
     }
 
@@ -418,8 +516,11 @@ internal sealed class ControlForm : Form
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
         HideAnswer();
-        _settings.WindowPosition = [Location.X, Location.Y];
-        _settings.Save();
+        if (!_preview)
+        {
+            _settings.WindowPosition = [Location.X, Location.Y];
+            _settings.Save();
+        }
         base.OnFormClosing(e);
     }
 }

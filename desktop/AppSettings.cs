@@ -22,6 +22,10 @@ internal sealed class AppSettings
 
     public int[]? WindowPosition { get; set; }
 
+    /// <summary>Never written to disk (used when taking a picture of the window).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool ReadOnly { get; init; }
+
     public static string Folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "LoopSolver");
     public static string FilePath => Path.Combine(Folder, "settings.json");
 
@@ -54,6 +58,7 @@ internal sealed class AppSettings
 
     public void Save()
     {
+        if (ReadOnly) return;
         try
         {
             Directory.CreateDirectory(Folder);

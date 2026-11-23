@@ -10,6 +10,16 @@ plain logic.
 | Reads the puzzle | From the page's own data, so always exact | From the screen, by finding the dots and reading the numbers |
 | You need | A bookmark (or the Tampermonkey extension) | Windows and the .NET 10 SDK |
 
+## Get the code
+
+```powershell
+git clone https://github.com/limvleong04/PuzzleLoopSolver.git
+cd PuzzleLoopSolver
+```
+
+The browser tool also needs [Node.js](https://nodejs.org) once, to build the bookmark. The screen tool needs the
+[.NET 10 SDK](https://dotnet.microsoft.com/download).
+
 ## Browser tool (puzzle-loop.com)
 
 ### Set it up, without any extension
@@ -28,7 +38,7 @@ and save. The panel then appears on every puzzle by itself.
 
 ### Use it
 
-Open a puzzle and click the bookmark. A small panel appears in the bottom-right corner:
+Open a puzzle and click the bookmark. A small **Loop Solver** panel appears in the bottom-right corner:
 
 - **Show | Draw** chooses the mode. The choice is remembered.
 - In **Show** mode, **Show answer** lays the loop over the board in blue. Your board isn't changed, so you can
@@ -52,7 +62,9 @@ dotnet run -c Release
 ```
 
 Or build once with `dotnet build -c Release` and start `desktop\bin\Release\net10.0-windows\LoopSolver.exe`.
-A small window appears in the bottom-right corner and stays on top.
+A small window appears in the bottom-right corner and stays on top:
+
+![The Loop Solver window after reading a 10 x 10 board](docs/screen-tool-window.png)
 
 ### Use it
 
@@ -129,7 +141,8 @@ desktop\bin\Release\net10.0-windows\LoopSolver.exe --check test\boards\boards.js
 
 The first runs the same 15 puzzles through the screen tool's solver. The second reads the screenshots in
 `test/boards` (puzzle-loop.com, Simon Tatham's Loopy and puzz.link, some with loose boxes and lines already
-drawn) and compares every number with the right answer. `--read <picture> [x y width height]` reads any picture.
+drawn) and compares every number with the right answer. `--read <picture> [x y width height]` reads any picture,
+and `--snapshot <png> [picture x y width height]` saves a picture of the window (the one above was made this way).
 
 ## Files
 
