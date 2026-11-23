@@ -38,13 +38,13 @@ and save. The panel then appears on every puzzle by itself.
 
 ### Use it
 
-Open a puzzle and click the bookmark. A small **Loop Solver** panel appears in the bottom-right corner:
+Open a puzzle and click the bookmark. A small dark **Loop Solver** panel appears in the bottom-right corner:
 
 - **Show | Draw** chooses the mode. The choice is remembered.
-- In **Show** mode, **Show answer** lays the loop over the board in blue. Your board isn't changed, so you can
-  trace it yourself. Click again to hide it.
-- In **Draw** mode, **Draw answer** fills the loop in. Wrong lines you drew yourself are removed, and undo still
-  works.
+- In **Show** mode, the **Show answer** button lays the loop over the board in blue. Your board isn't changed, so
+  you can trace it yourself. Press it again to hide the answer.
+- In **Draw** mode, the **Draw answer** button fills the loop in. Wrong lines you drew yourself are removed, and
+  undo still works.
 
 The bookmark runs straight away in whichever mode is selected. Before showing or drawing anything, the answer is
 checked against the solution check built into the page.
@@ -62,34 +62,41 @@ dotnet run -c Release
 ```
 
 Or build once with `dotnet build -c Release` and start `desktop\bin\Release\net10.0-windows\LoopSolver.exe`.
-A small window appears in the bottom-right corner and stays on top:
+A small dark window appears in the bottom-right corner, in the same style as Puffer Helper. It stays on top, isn't
+in the taskbar, and doesn't take focus away from the page when you click it. Drag it by its text to move it.
+**Right-click** it for the menu, including **Exit**.
 
 ![The Loop Solver window after reading a 10 x 10 board](docs/screen-tool-window.png)
 
 ### Use it
 
-1. Choose **Show** or **Draw** at the top of the window (or press **Ctrl+Alt+M** to switch).
-2. Press **Ctrl+Alt+S** (or **Pick board**). The screen freezes. Drag a box around the puzzle board. A rough box
-   is fine; text and buttons around the board are ignored.
+1. The top right of the window says **Show mode** or **Draw mode**. Click it (or press **Ctrl+Alt+M**) to switch.
+2. Press **Ctrl+Alt+S**. The screen freezes. Drag a box around the puzzle board. A rough box is fine; text and
+   buttons around the board are ignored.
 3. In **Show** mode, the loop appears in blue right over the board. Clicks go straight through it, so you can
-   trace it on the page. **Ctrl+Alt+H** hides or shows it.
+   trace it on the page.
 4. In **Draw** mode, the tool clicks the lines in for you with the mouse. Press **Esc**, or just move the mouse,
    to stop part-way.
 
-When a new puzzle loads in the same place, press **Ctrl+Alt+A** (**Read again**) instead of picking the area again.
+When a new puzzle loads in the same place, press **Ctrl+Alt+A** instead of picking the area again.
 
 | Hotkey | What it does |
 |---|---|
 | **Ctrl+Alt+S** | Pick a board on screen, then show or draw the answer |
 | **Ctrl+Alt+A** | Read the same area again |
-| **Ctrl+Alt+H** | Hide or show the answer |
 | **Ctrl+Alt+M** | Switch between Show and Draw |
+| **Ctrl+Alt+L** | Hide or show Loop Solver: the window and the blue answer together |
+
+The hotkeys stay clear of Puffer Helper's (Ctrl+Alt+Q, W, R and H), so both can run at once. Any of them can be
+changed in the settings file. The right-click menu also has **Hide the answer** on its own, without hiding the
+window.
 
 ### If a number is misread
 
 The window lists the numbers it read, one row per board row, with a dot for an empty cell. If the numbers it read
 don't give exactly one loop, it first tries the most doubtful ones as their next-best reading. If that still
-fails, it tells you. Compare the list with the board, fix the wrong number, and click **Solve these numbers**.
+fails, it tells you. Compare the list with the board, click into the list, fix the wrong number, and press
+**Ctrl+Enter**.
 
 ### Tips
 
@@ -100,7 +107,8 @@ fails, it tells you. Compare the list with the board, fix the wrong number, and 
 
 ### Settings
 
-Stored in `%AppData%\LoopSolver\settings.json`. Close the tool before editing it.
+Stored in `%AppData%\LoopSolver\settings.json`. Right-click the window and choose **Open settings file**, then
+restart Loop Solver after editing it.
 
 | Setting | Default | Notes |
 |---|---|---|
@@ -108,6 +116,7 @@ Stored in `%AppData%\LoopSolver\settings.json`. Close the tool before editing it
 | `DrawMethod` | `Click` | `Click` clicks the middle of each edge (puzzle-loop.com, Simon Tatham's Loopy). `Drag` drags from dot to dot, for sites where you draw by dragging, such as puzz.link. |
 | `ClickDelayMs` | `30` | Pause between clicks in Draw mode. Raise it if a site misses clicks. |
 | `LineColor` | `#1E90FF` | Colour of the answer in Show mode. |
+| `HotkeySolve`, `HotkeyAgain`, `HotkeyMode`, `HotkeyHide` | `Ctrl+Alt+S/A/M/L` | Written like `Ctrl+Shift+F9`. Each needs at least one of Ctrl, Alt, Shift or Win. |
 
 ## How the solver works
 
@@ -151,7 +160,7 @@ and `--snapshot <png> [picture x y width height]` saves a picture of the window 
 | `browser/puzzle-loop-solver.user.js` | Browser tool: solver and the Show/Draw panel. Also loads in Node for the tests. |
 | `browser/make-bookmarklet.js` | Builds `browser/bookmarklet.txt` from the script. |
 | `browser/cli.js` | Solve one puzzle-loop.com task from the command line and print the loop. |
-| `desktop/ControlForm.cs` | Screen tool window, hotkeys and the Show/Draw actions |
+| `desktop/ControlForm.cs`, `desktop/HotkeyBinding.cs` | Screen tool window, menu, hotkeys and the Show/Draw actions |
 | `desktop/BoardReader.cs`, `desktop/DigitClassifier.cs` | Finding the grid, reading the numbers and drawn lines |
 | `desktop/Solver.cs`, `desktop/AnswerFinder.cs` | The solver, and retrying doubtful numbers |
 | `desktop/AnswerOverlayForm.cs`, `desktop/MouseDriver.cs` | Show mode overlay and Draw mode clicking |

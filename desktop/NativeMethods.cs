@@ -5,6 +5,12 @@ namespace LoopSolver;
 internal static class NativeMethods
 {
     public const int WM_HOTKEY = 0x0312;
+    public const int WM_MOUSEACTIVATE = 0x0021;
+    public const int MA_ACTIVATE = 1;
+    public const int MA_NOACTIVATE = 3;
+
+    public const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    public const int DWMWCP_ROUND = 2;
 
     public const int WS_EX_TOPMOST = 0x00000008;
     public const int WS_EX_TRANSPARENT = 0x00000020;
@@ -14,6 +20,8 @@ internal static class NativeMethods
 
     public const uint MOD_ALT = 0x0001;
     public const uint MOD_CONTROL = 0x0002;
+    public const uint MOD_SHIFT = 0x0004;
+    public const uint MOD_WIN = 0x0008;
     public const uint MOD_NOREPEAT = 0x4000;
 
     public const uint WDA_EXCLUDEFROMCAPTURE = 0x11;
@@ -93,4 +101,11 @@ internal static class NativeMethods
     [DllImport("kernel32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool AttachConsole(int processId);
+
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
+
+    /// <summary>"DarkMode_Explorer" gives a control dark scroll bars (Windows 10 1809 and later).</summary>
+    [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
+    public static extern int SetWindowTheme(IntPtr hWnd, string? pszSubAppName, string? pszSubIdList);
 }

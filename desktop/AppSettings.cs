@@ -1,8 +1,9 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace LoopSolver;
 
-/// <summary>Stored in %AppData%\LoopSolver\settings.json.</summary>
+/// <summary>Stored in %AppData%\LoopSolver\settings.json. Right-click the window > Open settings file.</summary>
 internal sealed class AppSettings
 {
     /// <summary>"Show" puts the answer over the board; "Draw" clicks it in.</summary>
@@ -17,22 +18,35 @@ internal sealed class AppSettings
 
     public string LineColor { get; set; } = "#1E90FF";
 
+    // Hotkeys, written like "Ctrl+Alt+S" or "Ctrl+Shift+F9". The defaults stay clear of Puffer Helper's
+    // Ctrl+Alt+Q, W, R and H, so both tools can run at once.
+    public string HotkeySolve { get; set; } = "Ctrl+Alt+S";
+    public string HotkeyAgain { get; set; } = "Ctrl+Alt+A";
+    public string HotkeyMode { get; set; } = "Ctrl+Alt+M";
+    public string HotkeyHide { get; set; } = "Ctrl+Alt+L";
+
     /// <summary>Last board area picked, in screen pixels: x, y, width, height.</summary>
     public int[]? Area { get; set; }
 
     public int[]? WindowPosition { get; set; }
 
     /// <summary>Never written to disk (used when taking a picture of the window).</summary>
-    [System.Text.Json.Serialization.JsonIgnore]
+    [JsonIgnore]
     public bool ReadOnly { get; init; }
 
     public static string Folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "LoopSolver");
     public static string FilePath => Path.Combine(Folder, "settings.json");
 
+    [JsonIgnore]
     public bool DrawMode => Mode.Equals("Draw", StringComparison.OrdinalIgnoreCase);
+
+    [JsonIgnore]
     public bool DragToDraw => DrawMethod.Equals("Drag", StringComparison.OrdinalIgnoreCase);
+
+    [JsonIgnore]
     public Rectangle? AreaRect => Area is { Length: 4 } a ? new Rectangle(a[0], a[1], a[2], a[3]) : null;
 
+    [JsonIgnore]
     public Color LineColorValue
     {
         get

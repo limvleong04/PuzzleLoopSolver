@@ -522,21 +522,22 @@
       if (text) e.textContent = text;
       return e;
     };
+    // Same look as the desktop tool and Puffer Helper: dark, white title, muted grey for everything else.
     const box = el('div', 'position:fixed;right:16px;bottom:16px;z-index:2147483647;width:260px;box-sizing:border-box;' +
-      'font:13px/1.4 ' + font + ';color:#1f2937;text-align:left;background:#fff;border:1px solid #d1d5db;border-radius:10px;' +
-      'padding:12px;box-shadow:0 4px 16px rgba(0,0,0,.15)');
+      'font:13px/1.4 ' + font + ';color:#fff;text-align:left;background:#1c1c22;border:1px solid #2f2f38;border-radius:10px;' +
+      'padding:10px 12px 12px;box-shadow:0 6px 20px rgba(0,0,0,.35)');
     box.id = 'pls-panel';
 
     // Title and close
-    const head = el('div', 'display:flex;align-items:center;justify-content:space-between;margin-bottom:10px');
-    const close = el('button', 'font:20px/1 ' + font + ';border:0;background:none;color:#6b7280;cursor:pointer;padding:0 2px', '×');
+    const head = el('div', 'display:flex;align-items:center;justify-content:space-between;margin-bottom:8px');
+    const close = el('button', 'font:20px/1 ' + font + ';border:0;background:none;color:#a0a0ac;cursor:pointer;padding:0 2px', '×');
     close.title = 'Close';
-    head.append(el('div', 'font:600 14px ' + font, 'Loop Solver'), close);
+    head.append(el('div', 'font:600 16px ' + font + ';color:#fff', 'Loop Solver'), close);
 
     // Show | Draw
-    const seg = el('div', 'display:flex;border:1px solid #d1d5db;border-radius:6px;overflow:hidden;margin-bottom:8px');
+    const seg = el('div', 'display:flex;border:1px solid #3a3a45;border-radius:6px;overflow:hidden;margin-bottom:8px');
     const segBtn = (label, tip) => {
-      const b = el('button', 'flex:1;font:600 13px ' + font + ';padding:6px 0;border:0;cursor:pointer', label);
+      const b = el('button', 'flex:1;font:600 12px ' + font + ';padding:5px 0;border:0;cursor:pointer', label);
       b.title = tip;
       seg.appendChild(b);
       return b;
@@ -545,12 +546,11 @@
     const bDraw = segBtn('Draw', 'Fill the answer in on the board');
 
     // The action, and what happened
-    const go = el('button', 'display:block;width:100%;box-sizing:border-box;font:600 13px ' + font + ';padding:8px 0;border:0;' +
-      'border-radius:6px;background:#2563eb;color:#fff;cursor:pointer');
-    go.addEventListener('mouseenter', () => { go.style.background = '#1d4ed8'; });
-    go.addEventListener('mouseleave', () => { go.style.background = '#2563eb'; });
-    const status = el('div', 'margin-top:10px;padding:8px 10px;border-radius:6px;background:#f3f4f6;color:#374151;font-size:12px',
-      'Pick Show or Draw, then press the blue button.');
+    const go = el('button', 'display:block;width:100%;box-sizing:border-box;font:600 13px ' + font + ';padding:7px 0;' +
+      'border:1px solid #3f3f4a;border-radius:6px;background:#2c2c35;color:#fff;cursor:pointer');
+    go.addEventListener('mouseenter', () => { go.style.background = '#36363f'; });
+    go.addEventListener('mouseleave', () => { go.style.background = '#2c2c35'; });
+    const status = el('div', 'margin-top:8px;color:#a0a0ac;font-size:12px', 'Pick Show or Draw, then press the button.');
 
     box.append(head, seg, go, status);
     document.body.appendChild(box);
@@ -560,8 +560,8 @@
       refresh() {
         const m = getMode();
         for (const [b, on] of [[bShow, m === 'show'], [bDraw, m === 'draw']]) {
-          b.style.background = on ? '#2563eb' : '#fff';
-          b.style.color = on ? '#fff' : '#374151';
+          b.style.background = on ? '#3a3a45' : 'transparent';
+          b.style.color = on ? '#fff' : '#a0a0ac';
         }
         go.textContent = m === 'draw' ? 'Draw answer' : (overlayShowing() ? 'Hide answer' : 'Show answer');
       },
